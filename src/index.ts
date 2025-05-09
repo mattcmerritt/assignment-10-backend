@@ -7,21 +7,26 @@ import { getUserByCredentials, getUserById } from './users';
 import { createAuthToken, validateAuthToken } from './auth';
 import { InvalidAuthTokenError } from './errors';
 import { addEntryToList, getEntriesByUserId, updateEntryCompletion } from './entries';
+import { WebSocketServer, WebSocket } from 'ws';
 
 dotenv.config();
 
 const app = express();
 const port = 3000;
 
+const wsPort = 8080;
+const wss = new WebSocketServer({port: wsPort});
+
 const main = async () => {
     await initializeServer();
+    await initializeWebSocketServer();
 };
 
 const initializeServer = async () => {
-    console.log('Initializing Express Server...');
+    console.log('EX: Initializing Express Server...');
     app.use(express.json());
 
-    console.log('Configuring CORS...');
+    console.log('EX: Configuring CORS...');
     app.use(cors({
         origin: '*' // allows all origins to allow standalone application
     }));
@@ -35,7 +40,7 @@ const initializeServer = async () => {
         id: number
     }
 
-    console.log('Defining endpoint POST /login');
+    console.log('EX: Defining endpoint POST /login');
     app.post('/login', async (req, res): Promise<any> => {
         try {
             const validator = getLoginRequestValidator();
@@ -57,7 +62,7 @@ const initializeServer = async () => {
         }
     });
 
-    console.log('Defining endpoint GET /user');
+    console.log('EX: Defining endpoint GET /user');
     app.get('/user', async (req, res): Promise<any> => {
         try {
             if (!req.headers.token) {
@@ -88,7 +93,7 @@ const initializeServer = async () => {
         completed: boolean
     }
 
-    console.log('Defining endpoint GET /entry');
+    console.log('EX: Defining endpoint GET /entry');
     app.get('/entry', async (req, res): Promise<any> => {
         try {
             if (!req.headers.token) {
@@ -112,7 +117,7 @@ const initializeServer = async () => {
         }
     });
 
-    console.log('Defining endpoint POST /entry');
+    console.log('EX: Defining endpoint POST /entry');
     app.post('/entry', async (req, res): Promise<any> => {
         try {
             if (!req.headers.token) {
@@ -131,6 +136,7 @@ const initializeServer = async () => {
             }
             const body = req.body as AddEntryBody;
             await addEntryToList(user.id, body.content);
+            updateAllSockets();
             return res.status(201).json({ message: `successfully added new entry` });
         }
         catch (err: unknown) {
@@ -142,6 +148,7 @@ const initializeServer = async () => {
         }
     });
 
+    console.log('EX: Defining endpoint POST /entry/:id');
     app.post('/entry/:id', async (req, res): Promise<any> => {
         try {
             const id = parseInt(req.params.id, 10);
@@ -161,6 +168,7 @@ const initializeServer = async () => {
             }
             const body = req.body as UpdateEntryBody;
             await updateEntryCompletion(id, body.completed);
+            updateAllSockets();
             return res.status(201).json({ message: `successfully updated entry ${id}` });
         }
         catch (err: unknown) {
@@ -174,10 +182,29 @@ const initializeServer = async () => {
 
     // start express server
     app.listen(port, () => {
-        console.log(`Listening on port ${port}`);
+        console.log(`EX: Listening on port ${port}`);
     });
 
-    console.log('Express Server Initialized!');
+    console.log('EX: Express Server Initialized!');
 };
+
+const initializeWebSocketServer = async () => {
+    console.log('WS: Initializing WebSocket Server...');
+    wss.on('connection', (socket) => {
+        console.log('WS: Client connected.');
+        socket.on('close', () => {
+            console.log('WS: Client disconnected.');
+        });
+    });
+    console.log('WS: Listening on port 8080');
+};
+
+function updateAllSockets() {
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ updateRequired: true }));
+        }
+    });
+}
 
 main();

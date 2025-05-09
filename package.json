@@ -14,7 +14,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@types/ajv": "^1.0.4",
@@ -22,6 +23,7 @@
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.5",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   }
